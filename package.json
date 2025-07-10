@@ -1,0 +1,35 @@
+{
+  "name": "referral-client-app",
+  "version": "1.0.0",
+  "description": "Visa consultancy referral application with mobile and web clients",
+  "private": true,
+  "scripts": {
+    "dev:mobile": "cd mobile && npm run start",
+    "dev:web": "cd web && npm run dev",
+    "build:mobile": "cd mobile && npm run build",
+    "build:web": "cd web && npm run build",
+    "install:mobile": "cd mobile && npm install",
+    "install:web": "cd web && npm install",
+    "install:all": "npm run install:mobile && npm run install:web",
+    "clean": "rm -rf node_modules mobile/node_modules web/node_modules",
+    "reset": "npm run clean && npm run install:all"
+  },
+  "workspaces": [
+    "mobile",
+    "web"
+  ],
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Your Company",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourcompany/referral-client-app"
+  },
+  "dependencies": {}
+}
