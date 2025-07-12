@@ -1,5 +1,14 @@
 // Mock Data Service for React Native Mobile App
 
+// Utility function to generate avatar initials
+export const getAvatarInitials = (name) => {
+  return name
+    .split(' ')
+    .map(part => part.charAt(0).toUpperCase())
+    .slice(0, 2)
+    .join('');
+};
+
 export const mockData = {
   // Users data for authentication
   users: [
@@ -16,7 +25,7 @@ export const mockData = {
       referralCode: 'JOHN123',
       totalReferrals: 5,
       successfulReferrals: 3,
-      avatar: 'https://via.placeholder.com/150/3B82F6/FFFFFF?text=JS',
+      avatar: null, // Will use initials: JS
       accountType: 'Premium',
       points: 1250,
       tier: 'Gold',
@@ -44,7 +53,7 @@ export const mockData = {
       referralCode: 'JANE456',
       totalReferrals: 8,
       successfulReferrals: 6,
-      avatar: 'https://via.placeholder.com/150/3B82F6/FFFFFF?text=JD',
+      avatar: null, // Will use initials: JD
       accountType: 'Premium',
       points: 2100,
       tier: 'Platinum',

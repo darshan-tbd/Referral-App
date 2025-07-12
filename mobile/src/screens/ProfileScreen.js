@@ -15,16 +15,35 @@ import {
   Select,
   Switch,
   useToast,
-  Skeleton,
   Modal,
   Divider,
   AlertDialog,
   useDisclose,
+  Center,
+  Pressable,
+  Heading,
+  StatusBar,
+  Circle,
 } from 'native-base';
-import { Alert, RefreshControl } from 'react-native';
+import { Alert, RefreshControl, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
-import { userService, mockData } from '../services/mockData';
+import { userService, mockData, getAvatarInitials } from '../services/mockData';
+import { 
+  PageHeader,
+  MetricCard,
+  InfoCard,
+  EmptyState,
+  SkeletonLoader,
+  UserAvatar,
+  FormSection,
+  ListItem,
+  StatusBadge,
+  FloatingActionButton
+} from '../components/common/UIComponents';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 const ProfileScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -66,18 +85,20 @@ const ProfileScreen = () => {
         await updateUser(response.data.user);
         setShowEditModal(false);
         toast.show({
-          title: 'Success',
-          description: 'Profile updated successfully',
+          title: 'Profile updated successfully',
+          description: 'Your changes have been saved',
           status: 'success',
           duration: 3000,
+          placement: 'top',
         });
       }
     } catch (error) {
       toast.show({
-        title: 'Error',
+        title: 'Update failed',
         description: error.message || 'Failed to update profile',
         status: 'error',
         duration: 3000,
+        placement: 'top',
       });
     } finally {
       setIsLoading(false);
@@ -91,18 +112,20 @@ const ProfileScreen = () => {
       if (response.success) {
         setShowSettingsModal(false);
         toast.show({
-          title: 'Success',
-          description: 'Settings updated successfully',
+          title: 'Settings updated successfully',
+          description: 'Your preferences have been saved',
           status: 'success',
           duration: 3000,
+          placement: 'top',
         });
       }
     } catch (error) {
       toast.show({
-        title: 'Error',
+        title: 'Update failed',
         description: error.message || 'Failed to update settings',
         status: 'error',
         duration: 3000,
+        placement: 'top',
       });
     } finally {
       setIsLoading(false);
@@ -111,452 +134,522 @@ const ProfileScreen = () => {
 
   const handleLogout = () => {
     Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
+      'Confirm Logout',
+      'Are you sure you want to sign out of your account?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', style: 'destructive', onPress: logout },
+        { text: 'Sign Out', style: 'destructive', onPress: logout },
       ]
     );
   };
 
-  const StatCard = ({ title, value, subtitle, icon, color = 'primary' }) => (
-    <Card bg="white" borderRadius="xl" p={4} flex={1} mx={1}>
-      <VStack alignItems="center" space={3}>
-        <Box bg={`${color}.500`} p={3} borderRadius="full">
-          <Ionicons name={icon} size={24} color="white" />
-        </Box>
-        <Text fontSize="xl" fontWeight="bold" color={`${color}.600`}>
-          {value}
-        </Text>
-        <Text fontSize="sm" color="gray.600" textAlign="center">
-          {title}
-        </Text>
-        {subtitle && (
-          <Text fontSize="xs" color="gray.500" textAlign="center">
-            {subtitle}
-          </Text>
-        )}
-      </VStack>
-    </Card>
+  const ProfileHeader = ({ user }) => (
+    <Box position="relative" borderRadius="3xl" overflow="hidden" mb={6}>
+      <LinearGradient
+        colors={['#3B82F6', '#6366F1', '#8B5CF6']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ padding: 24 }}
+      >
+        {/* Enhanced floating design elements */}
+        <Circle size="100" bg="white" opacity={0.08} position="absolute" top={-30} right={-30} />
+        <Circle size="60" bg="white" opacity={0.06} position="absolute" bottom={-20} left={-20} />
+        <Circle size="40" bg="white" opacity={0.04} position="absolute" top={30} left={30} />
+        
+        <VStack space={6}>
+          <HStack alignItems="center" justifyContent="space-between">
+            <VStack>
+              <Text fontSize="sm" color="white" opacity={0.9}>
+                Welcome to your
+              </Text>
+              <Heading fontSize="2xl" fontWeight="bold" color="white">
+                Profile
+              </Heading>
+            </VStack>
+            <IconButton
+              icon={<Ionicons name="create" size={20} color="white" />}
+              onPress={() => setShowEditModal(true)}
+              bg="transparent"
+              borderRadius="full"
+              _pressed={{ bg: 'white', opacity: 0.2 }}
+            />
+          </HStack>
+          
+          <VStack alignItems="center" space={5}>
+            <Box position="relative">
+              <UserAvatar 
+                user={user} 
+                size="2xl" 
+                variant="elevated"
+              />
+              <Box position="absolute" bottom={0} right={0}>
+                <Circle size={8} bg="success.500" borderWidth={3} borderColor="white">
+                  <Ionicons name="checkmark" size={16} color="white" />
+                </Circle>
+              </Box>
+            </Box>
+            
+            <VStack alignItems="center" space={3}>
+              <VStack alignItems="center" space={1}>
+                <Heading fontSize="xl" fontWeight="bold" color="white">
+                  {user?.name || 'Unknown User'}
+                </Heading>
+                <Text fontSize="md" color="white" opacity={0.9}>
+                  {user?.email || 'No email'}
+                </Text>
+              </VStack>
+              
+              <HStack space={3}>
+                <Badge 
+                  colorScheme="warning" 
+                  variant="solid" 
+                  borderRadius="full"
+                  px={3}
+                  py={1}
+                >
+                  {user?.tier || 'Gold'}
+                </Badge>
+                <Badge 
+                  colorScheme="success" 
+                  variant="solid" 
+                  borderRadius="full"
+                  px={3}
+                  py={1}
+                >
+                  {user?.accountType || 'Premium'}
+                </Badge>
+              </HStack>
+              
+              <HStack alignItems="center" space={4}>
+                <HStack alignItems="center" space={2}>
+                  <Circle size={3} bg="success.400" />
+                  <Text fontSize="sm" color="white" opacity={0.9}>
+                    Active since {new Date().getFullYear()}
+                  </Text>
+                </HStack>
+              </HStack>
+            </VStack>
+          </VStack>
+        </VStack>
+      </LinearGradient>
+    </Box>
   );
 
-  const InfoCard = ({ title, children }) => (
-    <Card bg="white" borderRadius="xl" p={4}>
+  const AccountStats = ({ user }) => (
+    <VStack space={4}>
+      <HStack alignItems="center" justifyContent="space-between">
+        <Heading fontSize="lg" fontWeight="bold" color="gray.800">
+          Account Overview
+        </Heading>
+        <Text fontSize="sm" color="gray.500">
+          Your performance
+        </Text>
+      </HStack>
+      
+      <HStack space={3}>
+        <MetricCard
+          title="Referrals"
+          value={user?.stats?.referrals || 0}
+          subtitle="made"
+          icon="people"
+          color="primary"
+          size="sm"
+          trend={{ positive: true, value: '+2' }}
+        />
+        <MetricCard
+          title="Progress"
+          value={`${user?.progress?.percentage || 0}%`}
+          subtitle="complete"
+          icon="checkmark-circle"
+          color="success"
+          size="sm"
+          trend={{ positive: true, value: '+15%' }}
+        />
+        <MetricCard
+          title="Rewards"
+          value={user?.stats?.rewards || 0}
+          subtitle="earned"
+          icon="gift"
+          color="warning"
+          size="sm"
+          trend={{ positive: true, value: '+3' }}
+        />
+      </HStack>
+    </VStack>
+  );
+
+  const PersonalInfo = ({ user }) => (
+    <InfoCard
+      title="Personal Information"
+      icon="person-circle"
+      color="primary"
+      actions={[
+        <IconButton
+          key="edit"
+          icon={<Ionicons name="create" size={16} color="primary.600" />}
+          onPress={() => setShowEditModal(true)}
+          size="sm"
+          bg="primary.100"
+          borderRadius="full"
+          _pressed={{ bg: 'primary.200' }}
+        />
+      ]}
+    >
+      <VStack space={0}>
+        <ListItem
+          leftIcon="person"
+          title="Full Name"
+          subtitle={user?.name || 'Not provided'}
+          isLast={false}
+          variant="card"
+        />
+        <ListItem
+          leftIcon="mail"
+          title="Email Address"
+          subtitle={user?.email || 'Not provided'}
+          isLast={false}
+          variant="card"
+        />
+        <ListItem
+          leftIcon="call"
+          title="Phone Number"
+          subtitle={user?.phone || 'Not provided'}
+          isLast={false}
+          variant="card"
+        />
+        <ListItem
+          leftIcon="globe"
+          title="Country"
+          subtitle={user?.country || 'Not provided'}
+          isLast={true}
+          variant="card"
+        />
+      </VStack>
+    </InfoCard>
+  );
+
+  const ApplicationDetails = ({ user }) => (
+    <InfoCard
+      title="Application Details"
+      icon="document-text"
+      color="success"
+    >
+      <VStack space={0}>
+        <ListItem
+          leftIcon="card"
+          title="Visa Type"
+          subtitle={user?.visaType || 'Not specified'}
+          isLast={false}
+          variant="card"
+        />
+        <ListItem
+          leftIcon="barcode"
+          title="Application ID"
+          subtitle={user?.applicationId || 'Not assigned'}
+          isLast={false}
+          variant="card"
+        />
+        <ListItem
+          leftIcon="checkmark-circle"
+          title="Status"
+          subtitle={user?.status || 'Pending'}
+          rightElement={
+            <StatusBadge 
+              status={user?.status || 'pending'} 
+              variant="solid" 
+              size="sm"
+            />
+          }
+          isLast={false}
+          variant="card"
+        />
+        <ListItem
+          leftIcon="calendar"
+          title="Submitted"
+          subtitle={user?.submissionDate || 'Not submitted'}
+          isLast={true}
+          variant="card"
+        />
+      </VStack>
+    </InfoCard>
+  );
+
+  const QuickActions = () => (
+    <VStack space={4}>
+      <Heading fontSize="lg" fontWeight="bold" color="gray.800">
+        Quick Actions
+      </Heading>
+      
       <VStack space={3}>
-        <Text fontSize="lg" fontWeight="bold" color="gray.700">
-          {title}
-        </Text>
-        {children}
+        <ListItem
+          leftIcon="create"
+          title="Edit Profile"
+          subtitle="Update your personal information"
+          rightElement={
+            <IconButton
+              icon={<Ionicons name="chevron-forward" size={20} color="gray.400" />}
+              onPress={() => setShowEditModal(true)}
+              size="sm"
+            />
+          }
+          onPress={() => setShowEditModal(true)}
+          isLast={false}
+        />
+        
+        <ListItem
+          leftIcon="settings"
+          title="Settings"
+          subtitle="Manage your preferences"
+          rightElement={
+            <IconButton
+              icon={<Ionicons name="chevron-forward" size={20} color="gray.400" />}
+              onPress={() => setShowSettingsModal(true)}
+              size="sm"
+            />
+          }
+          onPress={() => setShowSettingsModal(true)}
+          isLast={false}
+        />
+        
+        <ListItem
+          leftIcon="help-circle"
+          title="Support"
+          subtitle="Get help and support"
+          rightElement={
+            <IconButton
+              icon={<Ionicons name="chevron-forward" size={20} color="gray.400" />}
+              onPress={() => {
+                toast.show({
+                  title: 'Support Available',
+                  description: 'Contact us at support@referralpro.com',
+                  status: 'info',
+                  duration: 3000,
+                  placement: 'top',
+                });
+              }}
+              size="sm"
+            />
+          }
+          onPress={() => {
+            toast.show({
+              title: 'Support Available',
+              description: 'Contact us at support@referralpro.com',
+              status: 'info',
+              duration: 3000,
+              placement: 'top',
+            });
+          }}
+          isLast={false}
+        />
+        
+        <ListItem
+          leftIcon="log-out"
+          title="Sign Out"
+          subtitle="Sign out of your account"
+          rightElement={
+            <IconButton
+              icon={<Ionicons name="chevron-forward" size={20} color="error.400" />}
+              onPress={handleLogout}
+              size="sm"
+            />
+          }
+          onPress={handleLogout}
+          isLast={true}
+        />
       </VStack>
-    </Card>
+    </VStack>
   );
 
-  const InfoRow = ({ label, value, icon }) => (
-    <HStack alignItems="center" space={3}>
-      <Box bg="primary.100" p={2} borderRadius="full">
-        <Ionicons name={icon} size={16} color="#3B82F6" />
-      </Box>
-      <VStack flex={1}>
-        <Text fontSize="xs" color="gray.500">
-          {label}
-        </Text>
-        <Text fontSize="sm" color="gray.700" fontWeight="medium">
-          {value || 'Not provided'}
-        </Text>
+  const LoadingSkeleton = () => (
+    <Box flex={1} bg="background.secondary" safeArea>
+      <VStack space={6} p={6}>
+        <SkeletonLoader lines={1} height={12} />
+        <SkeletonLoader lines={2} height={8} />
+        <HStack space={3}>
+          <SkeletonLoader lines={1} height={20} />
+          <SkeletonLoader lines={1} height={20} />
+          <SkeletonLoader lines={1} height={20} />
+        </HStack>
+        <SkeletonLoader lines={1} height={16} />
+        <SkeletonLoader lines={4} height={16} />
+        <SkeletonLoader lines={4} height={16} />
       </VStack>
-    </HStack>
+    </Box>
   );
 
   if (isLoading && !user) {
-    return (
-      <Box flex={1} bg="gray.50" safeArea>
-        <ScrollView>
-          <VStack space={4} p={4}>
-            <Skeleton h="32" borderRadius="xl" />
-            <HStack space={3}>
-              <Skeleton h="32" flex={1} borderRadius="xl" />
-              <Skeleton h="32" flex={1} borderRadius="xl" />
-              <Skeleton h="32" flex={1} borderRadius="xl" />
-            </HStack>
-            <Skeleton h="40" borderRadius="xl" />
-            <Skeleton h="40" borderRadius="xl" />
-            <Skeleton h="40" borderRadius="xl" />
-          </VStack>
-        </ScrollView>
-      </Box>
-    );
+    return <LoadingSkeleton />;
   }
 
   return (
-    <Box flex={1} bg="gray.50" safeArea>
+    <Box flex={1} bg="background.secondary">
+      <StatusBar barStyle="light-content" backgroundColor="#3B82F6" />
+      
       <ScrollView
+        contentContainerStyle={{ paddingBottom: 20 }}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
         }
         showsVerticalScrollIndicator={false}
       >
-        <VStack space={4} p={4}>
+        <VStack space={6} p={6} safeAreaTop>
           {/* Profile Header */}
-          <Card bg="primary.500" borderRadius="xl" p={6}>
-            <VStack alignItems="center" space={4}>
-              <Avatar
-                source={{ uri: user?.avatar }}
-                size="xl"
-                bg="white"
-              >
-                {user?.name?.charAt(0)}
-              </Avatar>
-              <VStack alignItems="center" space={2}>
-                <Text fontSize="2xl" fontWeight="bold" color="white">
-                  {user?.name}
-                </Text>
-                <Text fontSize="md" color="primary.100">
-                  {user?.email}
-                </Text>
-                <HStack alignItems="center" space={2}>
-                  <Badge colorScheme="white" variant="solid" borderRadius="full">
-                    {user?.tier || 'Gold'}
-                  </Badge>
-                  <Badge colorScheme="green" variant="solid" borderRadius="full">
-                    {user?.accountType || 'Premium'}
-                  </Badge>
-                </HStack>
-              </VStack>
-              <HStack space={2} mt={2}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  colorScheme="white"
-                  onPress={() => setShowEditModal(true)}
-                  leftIcon={<Ionicons name="create" size={16} />}
-                >
-                  Edit Profile
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  colorScheme="white"
-                  onPress={() => setShowSettingsModal(true)}
-                  leftIcon={<Ionicons name="settings" size={16} />}
-                >
-                  Settings
-                </Button>
-              </HStack>
-            </VStack>
-          </Card>
+          <ProfileHeader user={user} />
 
           {/* Account Stats */}
-          <HStack space={2}>
-            <StatCard
-              title="Total Referrals"
-              value={user?.totalReferrals || 0}
-              subtitle="lifetime"
-              icon="people"
-              color="blue"
-            />
-            <StatCard
-              title="Successful"
-              value={user?.successfulReferrals || 0}
-              subtitle="referrals"
-              icon="checkmark-circle"
-              color="green"
-            />
-            <StatCard
-              title="Reward Points"
-              value={user?.points || 0}
-              subtitle="earned"
-              icon="trophy"
-              color="orange"
-            />
-          </HStack>
+          <AccountStats user={user} />
 
           {/* Personal Information */}
-          <InfoCard title="Personal Information">
-            <VStack space={3}>
-              <InfoRow
-                label="Full Name"
-                value={user?.name}
-                icon="person"
-              />
-              <InfoRow
-                label="Email Address"
-                value={user?.email}
-                icon="mail"
-              />
-              <InfoRow
-                label="Phone Number"
-                value={user?.phone}
-                icon="call"
-              />
-              <InfoRow
-                label="Country"
-                value={user?.country}
-                icon="location"
-              />
-              <InfoRow
-                label="Visa Type"
-                value={user?.visaType}
-                icon="document-text"
-              />
-            </VStack>
-          </InfoCard>
+          <PersonalInfo user={user} />
 
-          {/* Application Status */}
-          <InfoCard title="Application Status">
-            <VStack space={3}>
-              <HStack alignItems="center" justifyContent="space-between">
-                <Text fontSize="sm" color="gray.600">
-                  Current Stage
-                </Text>
-                <Badge colorScheme="blue" variant="solid" borderRadius="full">
-                  {user?.currentStage || 'Initial Enquiry'}
-                </Badge>
-              </HStack>
-              <HStack alignItems="center" justifyContent="space-between">
-                <Text fontSize="sm" color="gray.600">
-                  Progress
-                </Text>
-                <Text fontSize="sm" color="primary.600" fontWeight="bold">
-                  {(user?.progress?.current || 1) * 20}% Complete
-                </Text>
-              </HStack>
-              <HStack alignItems="center" justifyContent="space-between">
-                <Text fontSize="sm" color="gray.600">
-                  Member Since
-                </Text>
-                <Text fontSize="sm" color="gray.700">
-                  {user?.joinDate || 'N/A'}
-                </Text>
-              </HStack>
-            </VStack>
-          </InfoCard>
-
-          {/* Referral Information */}
-          <InfoCard title="Referral Information">
-            <VStack space={3}>
-              <HStack alignItems="center" justifyContent="space-between">
-                <Text fontSize="sm" color="gray.600">
-                  Referral Code
-                </Text>
-                <HStack alignItems="center" space={2}>
-                  <Text fontSize="sm" color="gray.700" fontWeight="bold">
-                    {user?.referralCode}
-                  </Text>
-                  <IconButton
-                    icon={<Ionicons name="copy" size={16} />}
-                    size="sm"
-                    variant="ghost"
-                    colorScheme="primary"
-                    onPress={() => {
-                      // Copy to clipboard functionality would go here
-                      toast.show({
-                        title: 'Copied!',
-                        description: 'Referral code copied to clipboard',
-                        status: 'success',
-                        duration: 2000,
-                      });
-                    }}
-                  />
-                </HStack>
-              </HStack>
-              <HStack alignItems="center" justifyContent="space-between">
-                <Text fontSize="sm" color="gray.600">
-                  Success Rate
-                </Text>
-                <Text fontSize="sm" color="green.600" fontWeight="bold">
-                  {user?.totalReferrals ? Math.round((user.successfulReferrals / user.totalReferrals) * 100) : 0}%
-                </Text>
-              </HStack>
-              <HStack alignItems="center" justifyContent="space-between">
-                <Text fontSize="sm" color="gray.600">
-                  Commission Earned
-                </Text>
-                <Text fontSize="sm" color="green.600" fontWeight="bold">
-                  $2,450
-                </Text>
-              </HStack>
-            </VStack>
-          </InfoCard>
+          {/* Application Details */}
+          <ApplicationDetails user={user} />
 
           {/* Quick Actions */}
-          <Card bg="white" borderRadius="xl" p={4}>
-            <VStack space={3}>
-              <Text fontSize="lg" fontWeight="bold" color="gray.700">
-                Quick Actions
-              </Text>
-              <VStack space={2}>
-                <Button
-                  variant="outline"
-                  colorScheme="primary"
-                  justifyContent="flex-start"
-                  leftIcon={<Ionicons name="person-add" size={20} />}
-                  onPress={() => {
-                    // Navigate to referrals
-                    toast.show({
-                      title: 'Navigate',
-                      description: 'Opening referrals page...',
-                      status: 'info',
-                      duration: 2000,
-                    });
-                  }}
-                >
-                  Create New Referral
-                </Button>
-                <Button
-                  variant="outline"
-                  colorScheme="primary"
-                  justifyContent="flex-start"
-                  leftIcon={<Ionicons name="bar-chart" size={20} />}
-                  onPress={() => {
-                    // Navigate to progress
-                    toast.show({
-                      title: 'Navigate',
-                      description: 'Opening progress page...',
-                      status: 'info',
-                      duration: 2000,
-                    });
-                  }}
-                >
-                  View Progress
-                </Button>
-                <Button
-                  variant="outline"
-                  colorScheme="primary"
-                  justifyContent="flex-start"
-                  leftIcon={<Ionicons name="document-text" size={20} />}
-                  onPress={() => {
-                    // Navigate to documents
-                    toast.show({
-                      title: 'Navigate',
-                      description: 'Opening documents page...',
-                      status: 'info',
-                      duration: 2000,
-                    });
-                  }}
-                >
-                  Upload Documents
-                </Button>
-                <Button
-                  variant="outline"
-                  colorScheme="primary"
-                  justifyContent="flex-start"
-                  leftIcon={<Ionicons name="help-circle" size={20} />}
-                  onPress={() => {
-                    Alert.alert(
-                      'Support',
-                      'Contact our support team:\n\nPhone: +1-800-VISA-HELP\nEmail: support@visaconsultancy.com'
-                    );
-                  }}
-                >
-                  Contact Support
-                </Button>
-              </VStack>
-            </VStack>
-          </Card>
-
-          {/* Logout */}
-          <Card bg="red.50" borderRadius="xl" p={4}>
-            <VStack alignItems="center" space={3}>
-              <Box bg="red.500" p={3} borderRadius="full">
-                <Ionicons name="log-out" size={24} color="white" />
-              </Box>
-              <Text fontSize="md" fontWeight="medium" color="red.600">
-                Sign Out
-              </Text>
-              <Text fontSize="sm" color="red.500" textAlign="center">
-                You will be logged out of your account
-              </Text>
-              <Button
-                colorScheme="red"
-                variant="outline"
-                onPress={handleLogout}
-                leftIcon={<Ionicons name="log-out" size={16} />}
-              >
-                Logout
-              </Button>
-            </VStack>
-          </Card>
+          <QuickActions />
         </VStack>
       </ScrollView>
 
       {/* Edit Profile Modal */}
-      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} size="full">
-        <Modal.Content maxWidth="400px">
+      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} size="lg">
+        <Modal.Content maxWidth="400px" borderRadius="2xl">
           <Modal.CloseButton />
-          <Modal.Header>Edit Profile</Modal.Header>
+          <Modal.Header borderBottomWidth={0} pb={2}>
+            <HStack alignItems="center" space={2}>
+              <Box bg="primary.100" p={2} borderRadius="lg">
+                <Ionicons name="create" size={20} color="#3B82F6" />
+              </Box>
+              <Heading fontSize="lg" fontWeight="bold" color="gray.800">
+                Edit Profile
+              </Heading>
+            </HStack>
+          </Modal.Header>
           <Modal.Body>
-            <VStack space={4}>
-              <FormControl>
-                <FormControl.Label>Full Name</FormControl.Label>
-                <Input
-                  value={editForm.name}
-                  onChangeText={(text) => setEditForm({...editForm, name: text})}
-                  placeholder="Enter your full name"
-                />
-              </FormControl>
-
-              <FormControl>
-                <FormControl.Label>Email Address</FormControl.Label>
-                <Input
-                  value={editForm.email}
-                  onChangeText={(text) => setEditForm({...editForm, email: text})}
-                  placeholder="Enter your email"
-                  keyboardType="email-address"
-                  isReadOnly
-                />
-              </FormControl>
-
-              <FormControl>
-                <FormControl.Label>Phone Number</FormControl.Label>
-                <Input
-                  value={editForm.phone}
-                  onChangeText={(text) => setEditForm({...editForm, phone: text})}
-                  placeholder="Enter your phone number"
-                  keyboardType="phone-pad"
-                />
-              </FormControl>
-
-              <FormControl>
-                <FormControl.Label>Country</FormControl.Label>
-                <Select
-                  selectedValue={editForm.country}
-                  onValueChange={(value) => setEditForm({...editForm, country: value})}
-                  placeholder="Select your country"
-                >
-                  {mockData.countries.map((country) => (
-                    <Select.Item key={country.id} label={country.name} value={country.name} />
-                  ))}
-                </Select>
-              </FormControl>
-
-              <FormControl>
-                <FormControl.Label>Visa Type</FormControl.Label>
-                <Select
-                  selectedValue={editForm.visaType}
-                  onValueChange={(value) => setEditForm({...editForm, visaType: value})}
-                  placeholder="Select visa type"
-                >
-                  {mockData.visaTypes.map((type) => (
-                    <Select.Item key={type.id} label={type.name} value={type.name} />
-                  ))}
-                </Select>
-              </FormControl>
-            </VStack>
+            <FormSection title="Personal Information" icon="person">
+              <VStack space={4}>
+                <FormControl>
+                  <FormControl.Label>
+                    <Text fontSize="sm" fontWeight="semibold" color="gray.700">
+                      Full Name
+                    </Text>
+                  </FormControl.Label>
+                  <Input
+                    value={editForm.name}
+                    onChangeText={(value) => setEditForm({...editForm, name: value})}
+                    placeholder="Enter your full name"
+                    bg="gray.50"
+                    borderWidth={1}
+                    borderColor="gray.200"
+                    borderRadius="xl"
+                    _focus={{ borderColor: "primary.500", bg: "white" }}
+                  />
+                </FormControl>
+                
+                <FormControl>
+                  <FormControl.Label>
+                    <Text fontSize="sm" fontWeight="semibold" color="gray.700">
+                      Email Address
+                    </Text>
+                  </FormControl.Label>
+                  <Input
+                    value={editForm.email}
+                    onChangeText={(value) => setEditForm({...editForm, email: value})}
+                    placeholder="Enter your email"
+                    bg="gray.50"
+                    borderWidth={1}
+                    borderColor="gray.200"
+                    borderRadius="xl"
+                    _focus={{ borderColor: "primary.500", bg: "white" }}
+                  />
+                </FormControl>
+                
+                <FormControl>
+                  <FormControl.Label>
+                    <Text fontSize="sm" fontWeight="semibold" color="gray.700">
+                      Phone Number
+                    </Text>
+                  </FormControl.Label>
+                  <Input
+                    value={editForm.phone}
+                    onChangeText={(value) => setEditForm({...editForm, phone: value})}
+                    placeholder="Enter your phone number"
+                    bg="gray.50"
+                    borderWidth={1}
+                    borderColor="gray.200"
+                    borderRadius="xl"
+                    _focus={{ borderColor: "primary.500", bg: "white" }}
+                  />
+                </FormControl>
+                
+                <FormControl>
+                  <FormControl.Label>
+                    <Text fontSize="sm" fontWeight="semibold" color="gray.700">
+                      Country
+                    </Text>
+                  </FormControl.Label>
+                  <Select
+                    selectedValue={editForm.country}
+                    onValueChange={(value) => setEditForm({...editForm, country: value})}
+                    bg="gray.50"
+                    borderWidth={1}
+                    borderColor="gray.200"
+                    borderRadius="xl"
+                    _selectedItem={{
+                      bg: "primary.100",
+                      endIcon: <Ionicons name="checkmark" size={16} color="primary.600" />,
+                    }}
+                  >
+                    <Select.Item label="United States" value="US" />
+                    <Select.Item label="Canada" value="CA" />
+                    <Select.Item label="United Kingdom" value="UK" />
+                    <Select.Item label="Australia" value="AU" />
+                  </Select>
+                </FormControl>
+                
+                <FormControl>
+                  <FormControl.Label>
+                    <Text fontSize="sm" fontWeight="semibold" color="gray.700">
+                      Visa Type
+                    </Text>
+                  </FormControl.Label>
+                  <Select
+                    selectedValue={editForm.visaType}
+                    onValueChange={(value) => setEditForm({...editForm, visaType: value})}
+                    bg="gray.50"
+                    borderWidth={1}
+                    borderColor="gray.200"
+                    borderRadius="xl"
+                    _selectedItem={{
+                      bg: "primary.100",
+                      endIcon: <Ionicons name="checkmark" size={16} color="primary.600" />,
+                    }}
+                  >
+                    <Select.Item label="Tourist Visa" value="tourist" />
+                    <Select.Item label="Business Visa" value="business" />
+                    <Select.Item label="Student Visa" value="student" />
+                    <Select.Item label="Work Visa" value="work" />
+                  </Select>
+                </FormControl>
+              </VStack>
+            </FormSection>
           </Modal.Body>
-          <Modal.Footer>
-            <Button.Group space={2}>
+          <Modal.Footer borderTopWidth={0} pt={4}>
+            <Button.Group space={3} w="full">
               <Button
-                variant="ghost"
-                colorScheme="blueGray"
+                flex={1}
+                variant="outline"
+                colorScheme="gray"
                 onPress={() => setShowEditModal(false)}
+                borderRadius="xl"
               >
                 Cancel
               </Button>
               <Button
+                flex={1}
+                colorScheme="primary"
                 onPress={handleUpdateProfile}
                 isLoading={isLoading}
-                isLoadingText="Saving..."
+                borderRadius="xl"
               >
                 Save Changes
               </Button>
@@ -566,158 +659,119 @@ const ProfileScreen = () => {
       </Modal>
 
       {/* Settings Modal */}
-      <Modal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} size="full">
-        <Modal.Content maxWidth="400px">
+      <Modal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} size="lg">
+        <Modal.Content maxWidth="400px" borderRadius="2xl">
           <Modal.CloseButton />
-          <Modal.Header>Settings</Modal.Header>
+          <Modal.Header borderBottomWidth={0} pb={2}>
+            <HStack alignItems="center" space={2}>
+              <Box bg="primary.100" p={2} borderRadius="lg">
+                <Ionicons name="settings" size={20} color="#3B82F6" />
+              </Box>
+              <Heading fontSize="lg" fontWeight="bold" color="gray.800">
+                Settings
+              </Heading>
+            </HStack>
+          </Modal.Header>
           <Modal.Body>
-            <VStack space={4}>
-              <VStack space={3}>
-                <Text fontSize="md" fontWeight="bold" color="gray.700">
-                  Notifications
-                </Text>
-                <HStack alignItems="center" justifyContent="space-between">
-                  <Text fontSize="sm" color="gray.600">
-                    Email Notifications
-                  </Text>
-                  <Switch
-                    isChecked={settings.notifications.emailNotifications}
-                    onToggle={(value) => setSettings({
-                      ...settings,
-                      notifications: {
-                        ...settings.notifications,
-                        emailNotifications: value
-                      }
-                    })}
-                  />
-                </HStack>
-                <HStack alignItems="center" justifyContent="space-between">
-                  <Text fontSize="sm" color="gray.600">
-                    Push Notifications
-                  </Text>
-                  <Switch
-                    isChecked={settings.notifications.pushNotifications}
-                    onToggle={(value) => setSettings({
-                      ...settings,
-                      notifications: {
-                        ...settings.notifications,
-                        pushNotifications: value
-                      }
-                    })}
-                  />
-                </HStack>
-                <HStack alignItems="center" justifyContent="space-between">
-                  <Text fontSize="sm" color="gray.600">
-                    SMS Notifications
-                  </Text>
-                  <Switch
-                    isChecked={settings.notifications.smsNotifications}
-                    onToggle={(value) => setSettings({
-                      ...settings,
-                      notifications: {
-                        ...settings.notifications,
-                        smsNotifications: value
-                      }
-                    })}
-                  />
-                </HStack>
-              </VStack>
-
-              <Divider />
-
-              <VStack space={3}>
-                <Text fontSize="md" fontWeight="bold" color="gray.700">
-                  Privacy
-                </Text>
-                <HStack alignItems="center" justifyContent="space-between">
-                  <Text fontSize="sm" color="gray.600">
-                    Profile Visible
-                  </Text>
-                  <Switch
-                    isChecked={settings.privacy.profileVisible}
-                    onToggle={(value) => setSettings({
-                      ...settings,
-                      privacy: {
-                        ...settings.privacy,
-                        profileVisible: value
-                      }
-                    })}
-                  />
-                </HStack>
-                <HStack alignItems="center" justifyContent="space-between">
-                  <Text fontSize="sm" color="gray.600">
-                    Share Progress
-                  </Text>
-                  <Switch
-                    isChecked={settings.privacy.shareProgress}
-                    onToggle={(value) => setSettings({
-                      ...settings,
-                      privacy: {
-                        ...settings.privacy,
-                        shareProgress: value
-                      }
-                    })}
-                  />
-                </HStack>
-              </VStack>
-
-              <Divider />
-
-              <VStack space={3}>
-                <Text fontSize="md" fontWeight="bold" color="gray.700">
-                  Preferences
-                </Text>
+            <FormSection title="Preferences" icon="settings">
+              <VStack space={4}>
                 <FormControl>
-                  <FormControl.Label>Theme</FormControl.Label>
-                  <Select
-                    selectedValue={settings.preferences.theme}
-                    onValueChange={(value) => setSettings({
-                      ...settings,
-                      preferences: {
-                        ...settings.preferences,
-                        theme: value
-                      }
-                    })}
-                  >
-                    <Select.Item label="Light" value="light" />
-                    <Select.Item label="Dark" value="dark" />
-                    <Select.Item label="System" value="system" />
-                  </Select>
+                  <HStack alignItems="center" justifyContent="space-between">
+                    <VStack flex={1}>
+                      <Text fontSize="md" fontWeight="semibold" color="gray.800">
+                        Push Notifications
+                      </Text>
+                      <Text fontSize="sm" color="gray.500">
+                        Receive notifications on your device
+                      </Text>
+                    </VStack>
+                    <Switch
+                      value={settings.notifications}
+                      onValueChange={(value) => setSettings({...settings, notifications: value})}
+                      colorScheme="primary"
+                    />
+                  </HStack>
                 </FormControl>
+                
+                <Divider />
+                
                 <FormControl>
-                  <FormControl.Label>Language</FormControl.Label>
-                  <Select
-                    selectedValue={settings.preferences.language}
-                    onValueChange={(value) => setSettings({
-                      ...settings,
-                      preferences: {
-                        ...settings.preferences,
-                        language: value
-                      }
-                    })}
-                  >
-                    <Select.Item label="English" value="en" />
-                    <Select.Item label="Spanish" value="es" />
-                    <Select.Item label="French" value="fr" />
-                    <Select.Item label="German" value="de" />
-                  </Select>
+                  <HStack alignItems="center" justifyContent="space-between">
+                    <VStack flex={1}>
+                      <Text fontSize="md" fontWeight="semibold" color="gray.800">
+                        Email Updates
+                      </Text>
+                      <Text fontSize="sm" color="gray.500">
+                        Receive email notifications
+                      </Text>
+                    </VStack>
+                    <Switch
+                      value={settings.emailNotifications}
+                      onValueChange={(value) => setSettings({...settings, emailNotifications: value})}
+                      colorScheme="primary"
+                    />
+                  </HStack>
+                </FormControl>
+                
+                <Divider />
+                
+                <FormControl>
+                  <HStack alignItems="center" justifyContent="space-between">
+                    <VStack flex={1}>
+                      <Text fontSize="md" fontWeight="semibold" color="gray.800">
+                        Dark Mode
+                      </Text>
+                      <Text fontSize="sm" color="gray.500">
+                        Use dark theme
+                      </Text>
+                    </VStack>
+                    <Switch
+                      value={settings.darkMode}
+                      onValueChange={(value) => setSettings({...settings, darkMode: value})}
+                      colorScheme="primary"
+                    />
+                  </HStack>
+                </FormControl>
+                
+                <Divider />
+                
+                <FormControl>
+                  <HStack alignItems="center" justifyContent="space-between">
+                    <VStack flex={1}>
+                      <Text fontSize="md" fontWeight="semibold" color="gray.800">
+                        Auto-save
+                      </Text>
+                      <Text fontSize="sm" color="gray.500">
+                        Automatically save changes
+                      </Text>
+                    </VStack>
+                    <Switch
+                      value={settings.autoSave}
+                      onValueChange={(value) => setSettings({...settings, autoSave: value})}
+                      colorScheme="primary"
+                    />
+                  </HStack>
                 </FormControl>
               </VStack>
-            </VStack>
+            </FormSection>
           </Modal.Body>
-          <Modal.Footer>
-            <Button.Group space={2}>
+          <Modal.Footer borderTopWidth={0} pt={4}>
+            <Button.Group space={3} w="full">
               <Button
-                variant="ghost"
-                colorScheme="blueGray"
+                flex={1}
+                variant="outline"
+                colorScheme="gray"
                 onPress={() => setShowSettingsModal(false)}
+                borderRadius="xl"
               >
                 Cancel
               </Button>
               <Button
+                flex={1}
+                colorScheme="primary"
                 onPress={handleUpdateSettings}
                 isLoading={isLoading}
-                isLoadingText="Saving..."
+                borderRadius="xl"
               >
                 Save Settings
               </Button>
@@ -725,6 +779,14 @@ const ProfileScreen = () => {
           </Modal.Footer>
         </Modal.Content>
       </Modal>
+
+      {/* Floating Action Button */}
+      <FloatingActionButton
+        icon="refresh"
+        onPress={handleRefresh}
+        colorScheme="primary"
+        label="Refresh"
+      />
     </Box>
   );
 };

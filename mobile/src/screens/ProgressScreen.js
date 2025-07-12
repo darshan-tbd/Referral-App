@@ -11,18 +11,37 @@ import {
   Button,
   Divider,
   useToast,
-  Skeleton,
   Circle,
+  Center,
+  Pressable,
+  IconButton,
+  Heading,
+  StatusBar,
 } from 'native-base';
-import { RefreshControl } from 'react-native';
+import { RefreshControl, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { dashboardService } from '../services/mockData';
+import { 
+  PageHeader,
+  MetricCard,
+  InfoCard,
+  EmptyState,
+  SkeletonLoader,
+  TimelineStep,
+  ProgressIndicator,
+  StatusBadge,
+  FloatingActionButton
+} from '../components/common/UIComponents';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 const ProgressScreen = () => {
   const [progressData, setProgressData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedStage, setSelectedStage] = useState(null);
+  
   const { user } = useAuth();
   const toast = useToast();
 
@@ -40,10 +59,11 @@ const ProgressScreen = () => {
     } catch (error) {
       console.error('Error loading progress data:', error);
       toast.show({
-        title: 'Error',
-        description: 'Failed to load progress data',
+        title: 'Error loading progress',
+        description: 'Failed to load progress data. Please try again.',
         status: 'error',
         duration: 3000,
+        placement: 'top',
       });
     } finally {
       setIsLoading(false);
@@ -56,365 +76,466 @@ const ProgressScreen = () => {
     setIsRefreshing(false);
   };
 
-  const StageCard = ({ stage, isActive, isCompleted, isUpcoming, index }) => {
-    const getStageColor = () => {
-      if (isCompleted) return 'green';
-      if (isActive) return 'blue';
-      return 'gray';
-    };
-
-    const getStageIcon = () => {
-      if (isCompleted) return 'checkmark-circle';
-      if (isActive) return 'time';
-      return 'ellipse-outline';
-    };
-
-    return (
-      <Card
-        bg={isActive ? 'blue.50' : isCompleted ? 'green.50' : 'gray.50'}
-        borderRadius="xl"
-        p={4}
-        mb={3}
-        borderWidth={isActive ? 2 : 1}
-        borderColor={isActive ? 'blue.500' : isCompleted ? 'green.500' : 'gray.200'}
-      >
-        <HStack alignItems="center" space={4}>
-          <Box
-            bg={`${getStageColor()}.500`}
-            p={3}
-            borderRadius="full"
-            position="relative"
-          >
-            <Ionicons name={getStageIcon()} size={24} color="white" />
-            {isActive && (
-              <Box
-                position="absolute"
-                top={-1}
-                right={-1}
-                bg="orange.500"
-                w={3}
-                h={3}
-                borderRadius="full"
-              />
-            )}
-          </Box>
-          
-          <VStack flex={1} space={1}>
-            <HStack alignItems="center" justifyContent="space-between">
-              <Text fontSize="lg" fontWeight="bold" color="gray.700">
-                Stage {index + 1}
-              </Text>
-              <Badge
-                colorScheme={getStageColor()}
-                variant={isCompleted || isActive ? 'solid' : 'outline'}
-                borderRadius="full"
-              >
-                {isCompleted ? 'Completed' : isActive ? 'In Progress' : 'Pending'}
-              </Badge>
-            </HStack>
-            
-            <Text fontSize="md" fontWeight="medium" color="gray.600">
-              {stage.name}
+  const ProgressOverview = ({ user, overallProgress }) => (
+    <InfoCard
+      title="Application Progress"
+      icon="analytics"
+      color="primary"
+      actions={[
+        <Badge 
+          key="progress"
+          colorScheme="primary" 
+          variant="solid" 
+          borderRadius="full" 
+          px={3} 
+          py={1}
+        >
+          {Math.round(overallProgress)}%
+        </Badge>
+      ]}
+    >
+      <VStack space={4}>
+        <HStack alignItems="center" justifyContent="space-between">
+          <VStack>
+            <Text fontSize="md" fontWeight="semibold" color="gray.800">
+              {user?.visaType || 'Visa Application'}
             </Text>
-            
-            {stage.date && (
-              <Text fontSize="sm" color="gray.500">
-                {isCompleted ? 'Completed on' : 'Started on'}: {stage.date}
-              </Text>
-            )}
-            
-            {isActive && (
-              <Text fontSize="sm" color="blue.600" fontWeight="medium">
-                Currently processing...
-              </Text>
-            )}
+            <Text fontSize="sm" color="gray.500">
+              {user?.country || 'Processing destination'}
+            </Text>
+          </VStack>
+          <VStack alignItems="flex-end">
+            <Text fontSize="sm" color="gray.500">
+              Current Stage
+            </Text>
+            <Text fontSize="md" fontWeight="semibold" color="primary.600">
+              {user?.progress?.current || 1} of {user?.progress?.stages?.length || 5}
+            </Text>
           </VStack>
         </HStack>
-      </Card>
+        
+        <ProgressIndicator
+          value={overallProgress}
+          max={100}
+          colorScheme="primary"
+          size="lg"
+          showPercentage={true}
+          label="Overall Progress"
+        />
+        
+        <HStack alignItems="center" space={2}>
+          <Circle size={3} bg="primary.500" />
+          <Text fontSize="sm" color="gray.600">
+            Next: {user?.progress?.nextStage || 'Document Verification'}
+          </Text>
+        </HStack>
+      </VStack>
+    </InfoCard>
+  );
+
+  const ProgressStats = ({ stages }) => (
+    <VStack space={4}>
+      <HStack alignItems="center" justifyContent="space-between">
+        <Heading fontSize="lg" fontWeight="bold" color="gray.800">
+          Progress Summary
+        </Heading>
+        <Text fontSize="sm" color="gray.500">
+          Stage breakdown
+        </Text>
+      </HStack>
+      
+      <HStack space={3}>
+        <MetricCard
+          title="Completed"
+          value={stages.filter(s => s.status === 'completed').length}
+          subtitle="stages"
+          icon="checkmark-circle"
+          color="success"
+          size="sm"
+          trend={{ positive: true, value: `${stages.filter(s => s.status === 'completed').length}` }}
+        />
+        <MetricCard
+          title="In Progress"
+          value={stages.filter(s => s.status === 'in_progress').length}
+          subtitle="stage"
+          icon="time"
+          color="primary"
+          size="sm"
+          isHighlighted={stages.filter(s => s.status === 'in_progress').length > 0}
+        />
+        <MetricCard
+          title="Remaining"
+          value={stages.filter(s => s.status === 'pending').length}
+          subtitle="stages"
+          icon="ellipse"
+          color="warning"
+          size="sm"
+        />
+      </HStack>
+    </VStack>
+  );
+
+  const ApplicationTimeline = ({ stages }) => (
+    <InfoCard
+      title="Application Timeline"
+      icon="calendar"
+      color="success"
+    >
+      <VStack space={4}>
+        {stages.map((stage, index) => (
+          <TimelineStep
+            key={stage.id}
+            step={{
+              title: stage.name,
+              description: stage.description || `Stage ${index + 1} of your application`,
+              timestamp: stage.date || (stage.status === 'completed' ? 'Completed' : stage.status === 'in_progress' ? 'In Progress' : 'Pending')
+            }}
+            isActive={stage.status === 'in_progress'}
+            isCompleted={stage.status === 'completed'}
+            isLast={index === stages.length - 1}
+          />
+        ))}
+      </VStack>
+    </InfoCard>
+  );
+
+  const KeyMilestones = () => {
+    const milestones = [
+      { 
+        title: 'Application Submitted', 
+        description: 'Your application has been received and is being processed', 
+        date: '2024-01-15', 
+        completed: true 
+      },
+      { 
+        title: 'Document Review', 
+        description: 'All submitted documents are under review', 
+        date: '2024-01-20', 
+        completed: true 
+      },
+      { 
+        title: 'Interview Scheduled', 
+        description: 'Interview appointment has been confirmed', 
+        date: '2024-02-01', 
+        completed: false, 
+        active: true 
+      },
+      { 
+        title: 'Final Decision', 
+        description: 'Final approval decision will be made', 
+        date: 'Pending', 
+        completed: false 
+      },
+    ];
+
+    return (
+      <InfoCard
+        title="Key Milestones"
+        icon="trophy"
+        color="warning"
+      >
+        <VStack space={4}>
+          {milestones.map((milestone, index) => (
+            <HStack key={index} alignItems="flex-start" space={4}>
+              <VStack alignItems="center" space={1}>
+                <Circle
+                  size={12}
+                  bg={milestone.completed ? 'success.500' : milestone.active ? 'primary.500' : 'gray.300'}
+                  shadow={milestone.active ? 'md' : 'sm'}
+                >
+                  <Ionicons 
+                    name={milestone.completed ? 'checkmark' : milestone.active ? 'time' : 'ellipse'} 
+                    size={20} 
+                    color="white" 
+                  />
+                </Circle>
+                {index < milestones.length - 1 && (
+                  <Box
+                    w={0.5}
+                    h={12}
+                    bg={milestone.completed ? 'success.300' : 'gray.200'}
+                  />
+                )}
+              </VStack>
+              
+              <VStack flex={1} space={1}>
+                <HStack alignItems="center" justifyContent="space-between">
+                  <Text fontSize="md" fontWeight="semibold" color="gray.800">
+                    {milestone.title}
+                  </Text>
+                  <StatusBadge 
+                    status={milestone.completed ? 'completed' : milestone.active ? 'in_progress' : 'pending'} 
+                    variant="solid" 
+                    size="sm"
+                  />
+                </HStack>
+                <Text fontSize="sm" color="gray.600">
+                  {milestone.description}
+                </Text>
+                {milestone.date && (
+                  <Text fontSize="xs" color="gray.500">
+                    {milestone.date}
+                  </Text>
+                )}
+              </VStack>
+            </HStack>
+          ))}
+        </VStack>
+      </InfoCard>
     );
   };
 
-  const StatCard = ({ title, value, subtitle, icon, color = 'primary' }) => (
-    <Card bg="white" borderRadius="xl" p={4} flex={1} mx={1}>
-      <VStack alignItems="center" space={3}>
-        <Box bg={`${color}.500`} p={3} borderRadius="full">
-          <Ionicons name={icon} size={24} color="white" />
-        </Box>
-        <Text fontSize="xl" fontWeight="bold" color={`${color}.600`}>
-          {value}
+  const ApplicationStages = ({ stages }) => (
+    <VStack space={4}>
+      <HStack alignItems="center" justifyContent="space-between">
+        <Heading fontSize="lg" fontWeight="bold" color="gray.800">
+          Application Stages
+        </Heading>
+        <Text fontSize="sm" color="gray.500">
+          {stages.length} total stages
         </Text>
-        <Text fontSize="sm" color="gray.600" textAlign="center">
-          {title}
-        </Text>
-        {subtitle && (
-          <Text fontSize="xs" color="gray.500" textAlign="center">
-            {subtitle}
-          </Text>
-        )}
+      </HStack>
+      
+      <VStack space={3}>
+        {stages.map((stage, index) => {
+          const isActive = stage.status === 'in_progress';
+          const isCompleted = stage.status === 'completed';
+          const isUpcoming = stage.status === 'pending';
+
+          return (
+            <Pressable key={stage.id} onPress={() => setSelectedStage(stage)}>
+              <Card
+                bg={isActive ? 'primary.50' : isCompleted ? 'success.50' : 'white'}
+                borderRadius="2xl"
+                p={5}
+                variant={isActive ? 'elevated' : 'outlined'}
+                borderColor={isActive ? 'primary.200' : isCompleted ? 'success.200' : 'gray.200'}
+                _pressed={{ opacity: 0.8 }}
+              >
+                <HStack alignItems="center" space={4}>
+                  <Box position="relative">
+                    <Circle
+                      size={14}
+                      bg={isCompleted ? 'success.500' : isActive ? 'primary.500' : 'gray.300'}
+                      shadow={isActive || isCompleted ? 'md' : 'sm'}
+                    >
+                      <Ionicons 
+                        name={isCompleted ? 'checkmark-circle' : isActive ? 'time' : 'ellipse-outline'} 
+                        size={24} 
+                        color="white" 
+                      />
+                    </Circle>
+                    {isActive && (
+                      <Circle
+                        size={4}
+                        bg="warning.500"
+                        position="absolute"
+                        top={-1}
+                        right={-1}
+                        borderWidth={2}
+                        borderColor="white"
+                      />
+                    )}
+                  </Box>
+                  
+                  <VStack flex={1} space={2}>
+                    <HStack alignItems="center" justifyContent="space-between">
+                      <VStack>
+                        <Text fontSize="md" fontWeight="bold" color="gray.800">
+                          Stage {index + 1}: {stage.name}
+                        </Text>
+                        {stage.description && (
+                          <Text fontSize="sm" color="gray.600">
+                            {stage.description}
+                          </Text>
+                        )}
+                      </VStack>
+                      <StatusBadge 
+                        status={stage.status} 
+                        variant="solid" 
+                        size="sm"
+                      />
+                    </HStack>
+                    
+                    {stage.date && (
+                      <Text fontSize="sm" color="gray.500">
+                        {isCompleted ? 'Completed on' : isActive ? 'Started on' : 'Expected'}: {stage.date}
+                      </Text>
+                    )}
+                    
+                    {isActive && stage.progress && (
+                      <ProgressIndicator
+                        value={stage.progress}
+                        max={100}
+                        colorScheme="primary"
+                        size="sm"
+                        showPercentage={true}
+                        label="Stage Progress"
+                      />
+                    )}
+                  </VStack>
+                  
+                  <IconButton
+                    icon={<Ionicons name="chevron-forward" size={20} color="gray.400" />}
+                    onPress={() => setSelectedStage(stage)}
+                    size="sm"
+                    variant="ghost"
+                  />
+                </HStack>
+              </Card>
+            </Pressable>
+          );
+        })}
       </VStack>
-    </Card>
+    </VStack>
+  );
+
+  const HelpSection = () => (
+    <InfoCard
+      title="Need Assistance?"
+      icon="help-circle"
+      color="primary"
+      variant="subtle"
+    >
+      <VStack space={4} alignItems="center">
+        <VStack alignItems="center" space={2}>
+          <Text fontSize="md" color="gray.600" textAlign="center">
+            Have questions about your application progress?
+          </Text>
+          <Text fontSize="sm" color="gray.500" textAlign="center">
+            Our support team is here to help you navigate the process.
+          </Text>
+        </VStack>
+        
+        <HStack space={3}>
+          <Button
+            variant="outline"
+            colorScheme="primary"
+            borderRadius="xl"
+            size="sm"
+            leftIcon={<Ionicons name="call" size={16} color="#3B82F6" />}
+            onPress={() => {
+              toast.show({
+                title: 'Call Support',
+                description: 'Call us at +1-800-SUPPORT',
+                status: 'info',
+                duration: 3000,
+                placement: 'top',
+              });
+            }}
+          >
+            Call Support
+          </Button>
+          
+          <Button
+            colorScheme="primary"
+            borderRadius="xl"
+            size="sm"
+            leftIcon={<Ionicons name="mail" size={16} color="white" />}
+            onPress={() => {
+              toast.show({
+                title: 'Email Support',
+                description: 'Contact us at support@referralpro.com',
+                status: 'info',
+                duration: 3000,
+                placement: 'top',
+              });
+            }}
+          >
+            Email Us
+          </Button>
+        </HStack>
+      </VStack>
+    </InfoCard>
+  );
+
+  const LoadingSkeleton = () => (
+    <Box flex={1} bg="background.secondary" safeArea>
+      <VStack space={6} p={6}>
+        <SkeletonLoader lines={1} height={12} />
+        <SkeletonLoader lines={1} height={16} />
+        <HStack space={3}>
+          <SkeletonLoader lines={1} height={20} />
+          <SkeletonLoader lines={1} height={20} />
+          <SkeletonLoader lines={1} height={20} />
+        </HStack>
+        <SkeletonLoader lines={1} height={20} />
+        <SkeletonLoader lines={4} height={16} />
+        <SkeletonLoader lines={3} height={20} />
+      </VStack>
+    </Box>
   );
 
   if (isLoading) {
-    return (
-      <Box flex={1} bg="gray.50" safeArea>
-        <ScrollView>
-          <VStack space={4} p={4}>
-            <Skeleton h="24" borderRadius="xl" />
-            <HStack space={3}>
-              <Skeleton h="32" flex={1} borderRadius="xl" />
-              <Skeleton h="32" flex={1} borderRadius="xl" />
-              <Skeleton h="32" flex={1} borderRadius="xl" />
-            </HStack>
-            <Skeleton h="20" borderRadius="xl" />
-            <Skeleton h="24" borderRadius="xl" />
-            <Skeleton h="24" borderRadius="xl" />
-            <Skeleton h="24" borderRadius="xl" />
-          </VStack>
-        </ScrollView>
-      </Box>
-    );
+    return <LoadingSkeleton />;
   }
 
-  const stages = user?.progress?.stages || [];
-  const currentStage = user?.progress?.current || 1;
+  const stages = user?.progress?.stages || [
+    { id: 1, name: 'Application Submitted', status: 'completed', date: '2024-01-15' },
+    { id: 2, name: 'Document Review', status: 'completed', date: '2024-01-20' },
+    { id: 3, name: 'Interview Process', status: 'in_progress', date: '2024-02-01', progress: 65 },
+    { id: 4, name: 'Background Check', status: 'pending', date: 'Pending' },
+    { id: 5, name: 'Final Decision', status: 'pending', date: 'Pending' },
+  ];
+  
+  const currentStage = user?.progress?.current || 3;
   const overallProgress = (currentStage / stages.length) * 100;
 
   return (
-    <Box flex={1} bg="gray.50" safeArea>
+    <Box flex={1} bg="background.secondary">
+      <StatusBar barStyle="light-content" backgroundColor="#3B82F6" />
+      
+      <PageHeader
+        title="Progress Tracker"
+        subtitle="Track your application journey"
+        variant="gradient"
+        actions={[
+          <IconButton
+            key="refresh"
+            icon={<Ionicons name="refresh" size={20} color="white" />}
+            onPress={handleRefresh}
+            bg="transparent"
+            _pressed={{ bg: 'white', opacity: 0.2 }}
+            isLoading={isRefreshing}
+          />
+        ]}
+      />
+
       <ScrollView
+        contentContainerStyle={{ paddingBottom: 20 }}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
         }
         showsVerticalScrollIndicator={false}
       >
-        <VStack space={4} p={4}>
-          {/* Header Card */}
-          <Card bg="primary.500" borderRadius="xl" p={6}>
-            <VStack space={4}>
-              <HStack alignItems="center" justifyContent="space-between">
-                <VStack>
-                  <Text fontSize="xl" fontWeight="bold" color="white">
-                    Application Progress
-                  </Text>
-                  <Text fontSize="sm" color="primary.100">
-                    {user?.visaType || 'Visa Application'} - {user?.country || 'Country'}
-                  </Text>
-                </VStack>
-                <Badge colorScheme="white" variant="solid" borderRadius="full">
-                  {Math.round(overallProgress)}%
-                </Badge>
-              </HStack>
-              
-              <VStack space={2}>
-                <Progress
-                  value={overallProgress}
-                  colorScheme="white"
-                  size="lg"
-                  borderRadius="full"
-                  bg="primary.400"
-                />
-                <HStack alignItems="center" justifyContent="space-between">
-                  <Text fontSize="sm" color="primary.100">
-                    Stage {currentStage} of {stages.length}
-                  </Text>
-                  <Text fontSize="sm" color="white" fontWeight="medium">
-                    {stages.find(s => s.id === currentStage)?.name || 'Processing'}
-                  </Text>
-                </HStack>
-              </VStack>
-            </VStack>
-          </Card>
+        <VStack space={6} p={6}>
+          {/* Progress Overview */}
+          <ProgressOverview user={user} overallProgress={overallProgress} />
 
-          {/* Summary Stats */}
-          <HStack space={2}>
-            <StatCard
-              title="Completed"
-              value={stages.filter(s => s.status === 'completed').length}
-              subtitle="stages"
-              icon="checkmark-circle"
-              color="green"
-            />
-            <StatCard
-              title="In Progress"
-              value={stages.filter(s => s.status === 'in_progress').length}
-              subtitle="stage"
-              icon="time"
-              color="blue"
-            />
-            <StatCard
-              title="Remaining"
-              value={stages.filter(s => s.status === 'pending').length}
-              subtitle="stages"
-              icon="ellipse"
-              color="gray"
-            />
-          </HStack>
+          {/* Progress Stats */}
+          <ProgressStats stages={stages} />
 
-          {/* Estimated Timeline */}
-          <Card bg="white" borderRadius="xl" p={4}>
-            <VStack space={3}>
-              <HStack alignItems="center" justifyContent="space-between">
-                <Text fontSize="lg" fontWeight="bold" color="gray.700">
-                  Estimated Timeline
-                </Text>
-                <Badge colorScheme="orange" variant="subtle" borderRadius="full">
-                  2-3 weeks remaining
-                </Badge>
-              </HStack>
-              
-              <VStack space={2}>
-                <HStack alignItems="center" justifyContent="space-between">
-                  <Text fontSize="sm" color="gray.600">
-                    Application Startedaa
-                  </Text>
-                </HStack>
-              </VStack>
-            </VStack>
-          </Card>
+          {/* Key Milestones */}
+          <KeyMilestones />
 
-          {/* Stage Progress */}
-          <VStack space={3}>
-            <Text fontSize="lg" fontWeight="bold" color="gray.700">
-              Stage Details
-            </Text>
-            
-            <VStack space={0}>
-              {stages.map((stage, index) => (
-                <StageCard
-                  key={stage.id}
-                  stage={stage}
-                  index={index}
-                  isCompleted={stage.status === 'completed'}
-                  isActive={stage.status === 'in_progress'}
-                  isUpcoming={stage.status === 'pending'}
-                />
-              ))}
-            </VStack>
-          </VStack>
+          {/* Application Timeline */}
+          <ApplicationTimeline stages={stages} />
 
-          {/* Next Steps */}
-          <Card bg="blue.50" borderRadius="xl" p={4}>
-            <VStack space={3}>
-              <HStack alignItems="center" space={3}>
-                <Box bg="blue.500" p={2} borderRadius="full">
-                  <Ionicons name="information-circle" size={20} color="white" />
-                </Box>
-                <Text fontSize="lg" fontWeight="bold" color="blue.700">
-                  Next Steps
-                </Text>
-              </HStack>
-              
-              <VStack space={2}>
-                <Text fontSize="sm" color="blue.600">
-                  • Review and submit any pending documents
-                </Text>
-                <Text fontSize="sm" color="blue.600">
-                  • Respond to any requests from our team
-                </Text>
-                <Text fontSize="sm" color="blue.600">
-                  • Keep your contact information updated
-                </Text>
-                <Text fontSize="sm" color="blue.600">
-                  • Check notifications regularly for updates
-                </Text>
-              </VStack>
-            </VStack>
-          </Card>
+          {/* Application Stages */}
+          <ApplicationStages stages={stages} />
 
-          {/* Support Section */}
-          <Card bg="gray.100" borderRadius="xl" p={4}>
-            <VStack space={3} alignItems="center">
-              <Box bg="primary.500" p={3} borderRadius="full">
-                <Ionicons name="help-circle" size={24} color="white" />
-              </Box>
-              <Text fontSize="md" fontWeight="medium" color="gray.700" textAlign="center">
-                Questions About Your Progress?
-              </Text>
-              <Text fontSize="sm" color="gray.600" textAlign="center">
-                Our team is here to help with any questions about your application status.
-              </Text>
-              <HStack space={2}>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  colorScheme="primary"
-                  leftIcon={<Ionicons name="call" size={16} />}
-                >
-                  Call Support
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  colorScheme="primary"
-                  leftIcon={<Ionicons name="chatbubble" size={16} />}
-                >
-                  Live Chat
-                </Button>
-              </HStack>
-            </VStack>
-          </Card>
-
-          {/* Document Checklist */}
-          <Card bg="white" borderRadius="xl" p={4}>
-            <VStack space={3}>
-              <Text fontSize="lg" fontWeight="bold" color="gray.700">
-                Required Documents
-              </Text>
-              
-              <VStack space={2}>
-                <HStack alignItems="center" space={3}>
-                  <Box bg="green.500" p={1} borderRadius="full">
-                    <Ionicons name="checkmark" size={12} color="white" />
-                  </Box>
-                  <Text fontSize="sm" color="gray.600" flex={1}>
-                    Passport Copy
-                  </Text>
-                  <Badge colorScheme="green" variant="solid" borderRadius="full">
-                    Submitted
-                  </Badge>
-                </HStack>
-                
-                <HStack alignItems="center" space={3}>
-                  <Box bg="green.500" p={1} borderRadius="full">
-                    <Ionicons name="checkmark" size={12} color="white" />
-                  </Box>
-                  <Text fontSize="sm" color="gray.600" flex={1}>
-                    Educational Certificates
-                  </Text>
-                  <Badge colorScheme="green" variant="solid" borderRadius="full">
-                    Submitted
-                  </Badge>
-                </HStack>
-                
-                <HStack alignItems="center" space={3}>
-                  <Box bg="orange.500" p={1} borderRadius="full">
-                    <Ionicons name="time" size={12} color="white" />
-                  </Box>
-                  <Text fontSize="sm" color="gray.600" flex={1}>
-                    Financial Documents
-                  </Text>
-                  <Badge colorScheme="orange" variant="solid" borderRadius="full">
-                    Pending
-                  </Badge>
-                </HStack>
-                
-                <HStack alignItems="center" space={3}>
-                  <Box bg="gray.400" p={1} borderRadius="full">
-                    <Ionicons name="ellipse" size={12} color="white" />
-                  </Box>
-                  <Text fontSize="sm" color="gray.600" flex={1}>
-                    Medical Certificate
-                  </Text>
-                  <Badge colorScheme="gray" variant="solid" borderRadius="full">
-                    Not Required
-                  </Badge>
-                </HStack>
-              </VStack>
-            </VStack>
-          </Card>
+          {/* Help Section */}
+          <HelpSection />
         </VStack>
       </ScrollView>
+
+      {/* Floating Action Button */}
+      <FloatingActionButton
+        icon="refresh"
+        onPress={handleRefresh}
+        colorScheme="primary"
+        label="Refresh"
+      />
     </Box>
   );
 };
