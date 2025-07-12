@@ -12,18 +12,47 @@ import {
   Select,
   useToast,
   Skeleton,
+  Pressable,
+  Modal,
+  Switch,
+  FormControl,
+  Center,
+  Spinner,
+  Heading,
   Divider,
+  StatusBar,
+  Circle,
 } from 'native-base';
-import { RefreshControl, Pressable } from 'react-native';
+import { RefreshControl, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { notificationService } from '../services/mockData';
+import { 
+  PageHeader,
+  MetricCard,
+  NotificationCard,
+  EmptyState,
+  SkeletonLoader,
+  StatusBadge,
+  FloatingActionButton,
+  InfoCard,
+  FormSection
+} from '../components/common/UIComponents';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 const NotificationsScreen = () => {
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [filterType, setFilterType] = useState('all');
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState({
+    push: true,
+    email: true,
+    sms: false,
+    marketing: false,
+  });
   
   const { user } = useAuth();
   const toast = useToast();
@@ -46,6 +75,7 @@ const NotificationsScreen = () => {
         description: 'Failed to load notifications',
         status: 'error',
         duration: 3000,
+        placement: 'top',
       });
     } finally {
       setIsLoading(false);
@@ -77,10 +107,11 @@ const NotificationsScreen = () => {
       if (response.success) {
         setNotifications(notifications.map(n => ({ ...n, isRead: true })));
         toast.show({
-          title: 'Success',
-          description: 'All notifications marked as read',
+          title: 'All notifications marked as read',
+          description: 'Your notification list has been updated',
           status: 'success',
           duration: 2000,
+          placement: 'top',
         });
       }
     } catch (error) {
@@ -90,36 +121,33 @@ const NotificationsScreen = () => {
         description: 'Failed to mark all notifications as read',
         status: 'error',
         duration: 3000,
+        placement: 'top',
       });
     }
   };
 
-  const getNotificationIcon = (type) => {
-    switch (type) {
-      case 'success': return 'checkmark-circle';
-      case 'warning': return 'warning';
-      case 'error': return 'alert-circle';
-      default: return 'information-circle';
-    }
-  };
-
-  const getNotificationColor = (type) => {
-    switch (type) {
-      case 'success': return 'green';
-      case 'warning': return 'orange';
-      case 'error': return 'red';
-      default: return 'blue';
-    }
-  };
-
-  const getCategoryIcon = (category) => {
-    switch (category) {
-      case 'visa_status': return 'document-text';
-      case 'documents': return 'folder';
-      case 'referral': return 'people';
-      case 'appointment': return 'calendar';
-      case 'payment': return 'card';
-      default: return 'information-circle';
+  const handleDeleteNotification = async (notificationId) => {
+    try {
+      const response = await notificationService.deleteNotification(notificationId);
+      if (response.success) {
+        setNotifications(notifications.filter(n => n.id !== notificationId));
+        toast.show({
+          title: 'Notification deleted',
+          description: 'The notification has been removed',
+          status: 'success',
+          duration: 2000,
+          placement: 'top',
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      toast.show({
+        title: 'Error',
+        description: 'Failed to delete notification',
+        status: 'error',
+        duration: 3000,
+        placement: 'top',
+      });
     }
   };
 
@@ -142,315 +170,506 @@ const NotificationsScreen = () => {
   });
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
+  const todayCount = notifications.filter(n => formatDate(n.createdAt) === 'Today').length;
 
-  const StatCard = ({ title, value, icon, color = 'primary' }) => (
-    <Card bg="white" borderRadius="xl" p={4} flex={1} mx={1}>
-      <VStack alignItems="center" space={3}>
-        <Box bg={`${color}.500`} p={3} borderRadius="full">
-          <Ionicons name={icon} size={24} color="white" />
-        </Box>
-        <Text fontSize="xl" fontWeight="bold" color={`${color}.600`}>
-          {value}
-        </Text>
-        <Text fontSize="sm" color="gray.600" textAlign="center">
-          {title}
-        </Text>
+  const handleSaveSettings = async () => {
+    try {
+      // Mock API call to save settings
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setShowSettings(false);
+      toast.show({
+        title: 'Settings updated',
+        description: 'Your notification preferences have been saved',
+        status: 'success',
+        duration: 2000,
+        placement: 'top',
+      });
+    } catch (error) {
+      toast.show({
+        title: 'Error',
+        description: 'Failed to save settings',
+        status: 'error',
+        duration: 3000,
+        placement: 'top',
+      });
+    }
+  };
+
+
+
+  // Improved Overview Cards with better responsive layout
+  const NotificationOverview = () => (
+    <Card bg="white" borderRadius="2xl" p={4} shadow="sm" variant="elevated">
+      <VStack space={3}>
+        <HStack alignItems="center" justifyContent="space-between">
+          <VStack>
+            <Heading fontSize="md" fontWeight="bold" color="gray.800" numberOfLines={1}>
+              Notification Overview
+            </Heading>
+            <Text fontSize="xs" color="gray.500" numberOfLines={1}>
+              Your activity summary
+            </Text>
+          </VStack>
+          <HStack space={2}>
+            {unreadCount > 0 && (
+              <Pressable onPress={handleMarkAllAsRead}>
+                <Box bg="primary.100" p={1.5} borderRadius="lg">
+                  <Ionicons name="checkmark-done" size={16} color="#3B82F6" />
+                </Box>
+              </Pressable>
+            )}
+            <Pressable onPress={() => setShowSettings(true)}>
+              <Box bg="gray.100" p={1.5} borderRadius="lg">
+                <Ionicons name="settings" size={16} color="gray.600" />
+              </Box>
+            </Pressable>
+          </HStack>
+        </HStack>
+        
+        {/* Compact metric cards in single row */}
+        <HStack space={2} justifyContent="space-between">
+          <Box flex={1}>
+            <MetricCard
+              title="Total"
+              value={notifications.length}
+              icon="notifications-outline"
+              color="primary"
+              size="xs"
+            />
+          </Box>
+          <Box flex={1}>
+            <MetricCard
+              title="Unread"
+              value={unreadCount}
+              icon="notifications-off-outline"
+              color="error"
+              size="xs"
+              trend={unreadCount > 0 ? { positive: false, value: `${unreadCount}` } : undefined}
+            />
+          </Box>
+          <Box flex={1}>
+            <MetricCard
+              title="Today"
+              value={todayCount}
+              icon="today"
+              color="success"
+              size="xs"
+              trend={todayCount > 0 ? { positive: true, value: `${todayCount}` } : undefined}
+            />
+          </Box>
+        </HStack>
       </VStack>
     </Card>
   );
 
-  const NotificationCard = ({ notification }) => (
-    <Pressable onPress={() => {
-      if (!notification.isRead) {
-        handleMarkAsRead(notification.id);
-      }
-    }}>
-      <Card 
-        bg={notification.isRead ? 'white' : 'blue.50'} 
-        borderRadius="xl" 
-        p={4} 
-        mb={3}
-        borderWidth={notification.isRead ? 1 : 2}
-        borderColor={notification.isRead ? 'gray.200' : 'blue.200'}
-      >
-        <HStack alignItems="center" space={4}>
-          <Box 
-            bg={`${getNotificationColor(notification.type)}.500`} 
-            p={3} 
-            borderRadius="full"
-            position="relative"
-          >
-            <Ionicons 
-              name={getNotificationIcon(notification.type)} 
-              size={20} 
-              color="white" 
-            />
-            {!notification.isRead && (
-              <Box
-                position="absolute"
-                top={-1}
-                right={-1}
-                bg="red.500"
-                w={3}
-                h={3}
-                borderRadius="full"
-              />
-            )}
+  // Enhanced Filter Section
+  const FilterSection = () => (
+    <Card bg="white" borderRadius="2xl" p={4} shadow="sm" variant="elevated">
+      <VStack space={3}>
+        <HStack alignItems="center" space={3}>
+          <Box bg="blue.100" p={2} borderRadius="lg">
+            <Ionicons name="filter" size={16} color="#3B82F6" />
           </Box>
-          
-          <VStack flex={1} space={1}>
-            <HStack alignItems="center" justifyContent="space-between">
-              <Text fontSize="md" fontWeight="bold" color="gray.700" flex={1}>
-                {notification.title}
-              </Text>
-              <HStack alignItems="center" space={2}>
-                {notification.priority === 'high' && (
-                  <Badge colorScheme="red" variant="solid" borderRadius="full">
-                    High
-                  </Badge>
-                )}
-                <Text fontSize="xs" color="gray.400">
-                  {formatDate(notification.createdAt)}
-                </Text>
-              </HStack>
-            </HStack>
-            
-            <Text fontSize="sm" color="gray.600" numberOfLines={2}>
-              {notification.message}
-            </Text>
-            
-            <HStack alignItems="center" space={2} mt={1}>
-              <Badge 
-                colorScheme={getNotificationColor(notification.type)} 
-                variant="subtle" 
-                borderRadius="full"
-              >
-                {notification.category.replace('_', ' ')}
-              </Badge>
-              {notification.actionRequired && (
-                <Badge colorScheme="orange" variant="solid" borderRadius="full">
-                  Action Required
-                </Badge>
-              )}
-            </HStack>
-          </VStack>
+          <Heading fontSize="sm" fontWeight="semibold" color="gray.800" numberOfLines={1}>
+            Filter Notifications
+          </Heading>
         </HStack>
-      </Card>
-    </Pressable>
+        
+        <VStack space={3}>
+          {/* Filter Dropdown */}
+          <HStack space={3} alignItems="center">
+            <Text fontSize="sm" fontWeight="medium" color="gray.600" minW="16">
+              Type:
+            </Text>
+            <Box flex={1}>
+              <Select
+                selectedValue={filterType}
+                onValueChange={setFilterType}
+                bg="gray.50"
+                borderWidth={1}
+                borderColor="gray.200"
+                borderRadius="xl"
+                fontSize="sm"
+                _selectedItem={{
+                  bg: "primary.100",
+                  endIcon: <Ionicons name="checkmark" size={16} color="primary.600" />,
+                }}
+              >
+                <Select.Item label="All Notifications" value="all" />
+                <Select.Item label="Unread Only" value="unread" />
+                <Select.Item label="Success" value="success" />
+                <Select.Item label="Warning" value="warning" />
+                <Select.Item label="Error" value="error" />
+                <Select.Item label="Info" value="info" />
+              </Select>
+            </Box>
+          </HStack>
+          
+          {/* Results Count */}
+          <HStack justifyContent="space-between" alignItems="center">
+            <Text fontSize="xs" color="gray.500">
+              {filteredNotifications.length} of {notifications.length} notifications
+            </Text>
+            {filterType !== 'all' && (
+              <Pressable onPress={() => setFilterType('all')}>
+                <Text fontSize="xs" color="primary.600" fontWeight="medium">
+                  Clear filter
+                </Text>
+              </Pressable>
+            )}
+          </HStack>
+        </VStack>
+      </VStack>
+    </Card>
+  );
+
+  // Enhanced Notifications List with better card design
+  const NotificationsList = () => (
+    <VStack space={4}>
+      <HStack alignItems="center" justifyContent="space-between">
+        <Heading fontSize="lg" fontWeight="bold" color="gray.800" numberOfLines={1}>
+          Recent Notifications
+        </Heading>
+        <Text fontSize="sm" color="gray.500" numberOfLines={1}>
+          {filteredNotifications.length} items
+        </Text>
+      </HStack>
+      
+      {filteredNotifications.length > 0 ? (
+        <VStack space={3}>
+          {filteredNotifications.map((notification, index) => (
+            <Card 
+              key={notification.id} 
+              bg="white" 
+              borderRadius="2xl" 
+              p={4} 
+              shadow="sm" 
+              variant="elevated"
+              borderLeftWidth={!notification.isRead ? 3 : 0}
+              borderLeftColor={!notification.isRead ? "primary.500" : "transparent"}
+            >
+              <VStack space={3}>
+                {/* Header with icon and status */}
+                <HStack alignItems="flex-start" justifyContent="space-between">
+                  <HStack alignItems="flex-start" space={3} flex={1}>
+                    <Box 
+                      bg={`${notification.type || 'primary'}.100`} 
+                      p={2} 
+                      borderRadius="xl"
+                      mt={1}
+                    >
+                      <Ionicons 
+                        name={
+                          notification.type === 'success' ? 'checkmark-circle' :
+                          notification.type === 'warning' ? 'warning' :
+                          notification.type === 'error' ? 'close-circle' :
+                          'information-circle'
+                        } 
+                        size={18} 
+                        color={
+                          notification.type === 'success' ? '#22C55E' :
+                          notification.type === 'warning' ? '#F59E0B' :
+                          notification.type === 'error' ? '#EF4444' :
+                          '#3B82F6'
+                        }
+                      />
+                    </Box>
+                    <VStack flex={1} space={1}>
+                      <Text fontSize="md" fontWeight="semibold" color="gray.800" numberOfLines={2}>
+                        {notification.title}
+                      </Text>
+                      <Text fontSize="sm" color="gray.600" numberOfLines={3}>
+                        {notification.message}
+                      </Text>
+                      <Text fontSize="xs" color="gray.400" numberOfLines={1}>
+                        {formatDate(notification.createdAt)}
+                      </Text>
+                    </VStack>
+                  </HStack>
+                  
+                  {/* Status indicator and actions */}
+                  <VStack alignItems="flex-end" space={2}>
+                    {!notification.isRead && (
+                      <Circle size={3} bg="primary.500" />
+                    )}
+                    <Badge
+                      colorScheme={
+                        notification.type === 'success' ? 'success' :
+                        notification.type === 'warning' ? 'warning' :
+                        notification.type === 'error' ? 'error' :
+                        'primary'
+                      }
+                      variant="subtle"
+                      borderRadius="full"
+                      px={2}
+                      py={0.5}
+                    >
+                      <Text fontSize="xs" fontWeight="medium">
+                        {notification.type || 'info'}
+                      </Text>
+                    </Badge>
+                  </VStack>
+                </HStack>
+                
+                {/* Actions */}
+                <Divider />
+                <HStack justifyContent="space-between" alignItems="center">
+                  <HStack space={4}>
+                    {!notification.isRead && (
+                      <Pressable 
+                        onPress={() => handleMarkAsRead(notification.id)}
+                        _pressed={{ opacity: 0.7 }}
+                      >
+                        <HStack alignItems="center" space={1}>
+                          <Ionicons name="checkmark" size={16} color="#3B82F6" />
+                          <Text fontSize="sm" color="primary.600" fontWeight="medium">
+                            Mark Read
+                          </Text>
+                        </HStack>
+                      </Pressable>
+                    )}
+                    <Pressable 
+                      onPress={() => handleDeleteNotification(notification.id)}
+                      _pressed={{ opacity: 0.7 }}
+                    >
+                      <HStack alignItems="center" space={1}>
+                        <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                        <Text fontSize="sm" color="error.600" fontWeight="medium">
+                          Delete
+                        </Text>
+                      </HStack>
+                    </Pressable>
+                  </HStack>
+                  <Text fontSize="xs" color="gray.400">
+                    ID: {notification.id}
+                  </Text>
+                </HStack>
+              </VStack>
+            </Card>
+          ))}
+        </VStack>
+      ) : (
+        <EmptyState
+          icon="notifications-off-outline"
+          title="No notifications found"
+          description={
+            filterType === 'all' 
+              ? "You're all caught up! No new notifications at the moment." 
+              : `No ${filterType} notifications available. Try changing your filter.`
+          }
+          size="lg"
+          action={
+            filterType !== 'all' && (
+              <Button
+                onPress={() => setFilterType('all')}
+                colorScheme="primary"
+                variant="outline"
+                borderRadius="xl"
+              >
+                Show All Notifications
+              </Button>
+            )
+          }
+        />
+      )}
+    </VStack>
+  );
+
+  const LoadingSkeleton = () => (
+    <Box flex={1} bg="background.secondary" safeArea>
+      <VStack space={6} p={6}>
+        <SkeletonLoader lines={1} height={12} />
+        <HStack space={3}>
+          <SkeletonLoader lines={1} height={20} />
+          <SkeletonLoader lines={1} height={20} />
+          <SkeletonLoader lines={1} height={20} />
+        </HStack>
+        <SkeletonLoader lines={1} height={16} />
+        <SkeletonLoader lines={4} height={20} />
+        <SkeletonLoader lines={4} height={20} />
+        <SkeletonLoader lines={4} height={20} />
+      </VStack>
+    </Box>
   );
 
   if (isLoading) {
-    return (
-      <Box flex={1} bg="gray.50" safeArea>
-        <ScrollView>
-          <VStack space={4} p={4}>
-            <HStack space={3}>
-              <Skeleton h="32" flex={1} borderRadius="xl" />
-              <Skeleton h="32" flex={1} borderRadius="xl" />
-              <Skeleton h="32" flex={1} borderRadius="xl" />
-            </HStack>
-            <Skeleton h="12" borderRadius="lg" />
-            <Skeleton h="20" borderRadius="xl" />
-            <Skeleton h="20" borderRadius="xl" />
-            <Skeleton h="20" borderRadius="xl" />
-          </VStack>
-        </ScrollView>
-      </Box>
-    );
+    return <LoadingSkeleton />;
   }
 
-  const categoryStats = {
-    visa_status: notifications.filter(n => n.category === 'visa_status').length,
-    documents: notifications.filter(n => n.category === 'documents').length,
-    referral: notifications.filter(n => n.category === 'referral').length,
-    appointment: notifications.filter(n => n.category === 'appointment').length,
-  };
-
   return (
-    <Box flex={1} bg="gray.50" safeArea>
+    <Box flex={1} bg="background.secondary">
+      <StatusBar barStyle="light-content" backgroundColor="#3B82F6" />
+      
       <ScrollView
+        contentContainerStyle={{ paddingBottom: 20 }}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
         }
         showsVerticalScrollIndicator={false}
       >
-        <VStack space={4} p={4}>
-          {/* Header */}
-          <Card bg="primary.500" borderRadius="xl" p={6}>
-            <HStack alignItems="center" justifyContent="space-between">
-              <VStack>
-                <Text fontSize="xl" fontWeight="bold" color="white">
-                  Notifications
-                </Text>
-                <Text fontSize="sm" color="primary.100">
-                  {unreadCount} unread notifications
-                </Text>
-              </VStack>
-              <HStack space={2}>
+        <VStack space={6} p={6} safeAreaTop>
+          {/* Enhanced Header */}
+          <Box position="relative" borderBottomRadius="3xl" overflow="hidden">
+            <PageHeader
+              title="Notifications"
+              subtitle="Stay updated with your activities"
+              variant="gradient"
+              actions={[
                 <IconButton
-                  icon={<Ionicons name="checkmark-done" size={20} color="white" />}
-                  onPress={handleMarkAllAsRead}
-                  bg="primary.400"
+                  key="settings"
+                  icon={<Ionicons name="settings-outline" size={20} color="white" />}
+                  onPress={() => setShowSettings(true)}
+                  bg="white"
+                  bgOpacity={0.2}
                   borderRadius="full"
-                  isDisabled={unreadCount === 0}
-                />
-                <IconButton
-                  icon={<Ionicons name="settings" size={20} color="white" />}
-                  bg="primary.400"
-                  borderRadius="full"
-                />
-              </HStack>
-            </HStack>
-          </Card>
+                  _pressed={{ bg: 'white', bgOpacity: 0.3 }}
+                />,
+                unreadCount > 0 && (
+                  <IconButton
+                    key="mark-all"
+                    icon={<Ionicons name="checkmark-done-outline" size={20} color="white" />}
+                    onPress={handleMarkAllAsRead}
+                    bg="white"
+                    bgOpacity={0.2}
+                    borderRadius="full"
+                    _pressed={{ bg: 'white', bgOpacity: 0.3 }}
+                  />
+                ),
+              ].filter(Boolean)}
+            />
+          </Box>
 
-          {/* Stats Cards */}
-          <HStack space={2}>
-            <StatCard
-              title="Total"
-              value={notifications.length}
-              icon="notifications"
-              color="blue"
-            />
-            <StatCard
-              title="Unread"
-              value={unreadCount}
-              icon="notifications-circle"
-              color="red"
-            />
-            <StatCard
-              title="Important"
-              value={notifications.filter(n => n.priority === 'high').length}
-              icon="warning"
-              color="orange"
-            />
-          </HStack>
+          {/* Notification Overview */}
+          <NotificationOverview />
 
-          {/* Filter */}
-          <VStack space={3}>
-            <Select
-              selectedValue={filterType}
-              onValueChange={setFilterType}
-              placeholder="Filter notifications"
-              size="lg"
-              borderRadius="lg"
-              bg="white"
-            >
-              <Select.Item label="All Notifications" value="all" />
-              <Select.Item label="Unread Only" value="unread" />
-              <Select.Item label="Success" value="success" />
-              <Select.Item label="Warnings" value="warning" />
-              <Select.Item label="Information" value="info" />
-            </Select>
-          </VStack>
+          {/* Filter Section */}
+          <FilterSection />
 
           {/* Notifications List */}
-          <VStack space={3}>
-            <HStack alignItems="center" justifyContent="space-between">
-              <Text fontSize="lg" fontWeight="bold" color="gray.700">
-                {filterType === 'all' ? 'All Notifications' : 
-                 filterType === 'unread' ? 'Unread Notifications' : 
-                 `${filterType.charAt(0).toUpperCase() + filterType.slice(1)} Notifications`}
-              </Text>
-              <Text fontSize="sm" color="gray.500">
-                {filteredNotifications.length} items
-              </Text>
-            </HStack>
-
-            {filteredNotifications.length === 0 ? (
-              <Card bg="white" borderRadius="xl" p={6}>
-                <VStack alignItems="center" space={4}>
-                  <Box bg="gray.100" p={4} borderRadius="full">
-                    <Ionicons name="notifications" size={32} color="gray" />
-                  </Box>
-                  <Text fontSize="lg" fontWeight="medium" color="gray.600" textAlign="center">
-                    No notifications found
-                  </Text>
-                  <Text fontSize="sm" color="gray.500" textAlign="center">
-                    {filterType === 'unread' ? 
-                      'All your notifications have been read' : 
-                      'You have no notifications in this category'}
-                  </Text>
-                </VStack>
-              </Card>
-            ) : (
-              <VStack space={0}>
-                {filteredNotifications.map((notification) => (
-                  <NotificationCard key={notification.id} notification={notification} />
-                ))}
-              </VStack>
-            )}
-          </VStack>
-
-          {/* Category Summary */}
-          <Card bg="white" borderRadius="xl" p={4}>
-            <VStack space={3}>
-              <Text fontSize="lg" fontWeight="bold" color="gray.700">
-                Notification Categories
-              </Text>
-              
-              <VStack space={2}>
-                <HStack alignItems="center" justifyContent="space-between">
-                  <HStack alignItems="center" space={3}>
-                    <Box bg="blue.500" p={2} borderRadius="full">
-                      <Ionicons name="document-text" size={16} color="white" />
-                    </Box>
-                    <Text fontSize="sm" color="gray.600">
-                      Visa Status Updates
-                    </Text>
-                  </HStack>
-                  <Badge colorScheme="blue" variant="solid" borderRadius="full">
-                    {categoryStats.visa_status}
-                  </Badge>
-                </HStack>
-                
-                <HStack alignItems="center" justifyContent="space-between">
-                  <HStack alignItems="center" space={3}>
-                    <Box bg="green.500" p={2} borderRadius="full">
-                      <Ionicons name="folder" size={16} color="white" />
-                    </Box>
-                    <Text fontSize="sm" color="gray.600">
-                      Document Requests
-                    </Text>
-                  </HStack>
-                  <Badge colorScheme="green" variant="solid" borderRadius="full">
-                    {categoryStats.documents}
-                  </Badge>
-                </HStack>
-                
-                <HStack alignItems="center" justifyContent="space-between">
-                  <HStack alignItems="center" space={3}>
-                    <Box bg="purple.500" p={2} borderRadius="full">
-                      <Ionicons name="people" size={16} color="white" />
-                    </Box>
-                    <Text fontSize="sm" color="gray.600">
-                      Referral Updates
-                    </Text>
-                  </HStack>
-                  <Badge colorScheme="purple" variant="solid" borderRadius="full">
-                    {categoryStats.referral}
-                  </Badge>
-                </HStack>
-                
-                <HStack alignItems="center" justifyContent="space-between">
-                  <HStack alignItems="center" space={3}>
-                    <Box bg="orange.500" p={2} borderRadius="full">
-                      <Ionicons name="calendar" size={16} color="white" />
-                    </Box>
-                    <Text fontSize="sm" color="gray.600">
-                      Appointments
-                    </Text>
-                  </HStack>
-                  <Badge colorScheme="orange" variant="solid" borderRadius="full">
-                    {categoryStats.appointment}
-                  </Badge>
-                </HStack>
-              </VStack>
-            </VStack>
-          </Card>
+          <NotificationsList />
         </VStack>
       </ScrollView>
 
-
+      {/* Settings Modal */}
+      <Modal isOpen={showSettings} onClose={() => setShowSettings(false)} size="lg">
+        <Modal.Content maxWidth="400px" borderRadius="2xl">
+          <Modal.CloseButton />
+          <Modal.Header borderBottomWidth={0} pb={2}>
+            <HStack alignItems="center" space={2}>
+              <Box bg="primary.100" p={2} borderRadius="lg">
+                <Ionicons name="settings" size={20} color="#3B82F6" />
+              </Box>
+              <Heading fontSize="lg" fontWeight="bold" color="gray.800">
+                Notification Settings
+              </Heading>
+            </HStack>
+          </Modal.Header>
+          <Modal.Body>
+            <FormSection title="Notification Preferences" icon="notifications">
+              <VStack space={4}>
+                <FormControl>
+                  <HStack alignItems="center" justifyContent="space-between">
+                    <VStack flex={1}>
+                      <Text fontSize="md" fontWeight="semibold" color="gray.800" numberOfLines={1}>
+                        Push Notifications
+                      </Text>
+                      <Text fontSize="sm" color="gray.500" numberOfLines={2}>
+                        Receive notifications on your device
+                      </Text>
+                    </VStack>
+                    <Switch
+                      value={settings.push}
+                      onValueChange={(value) => setSettings({...settings, push: value})}
+                      colorScheme="primary"
+                    />
+                  </HStack>
+                </FormControl>
+                
+                <Divider />
+                
+                <FormControl>
+                  <HStack alignItems="center" justifyContent="space-between">
+                    <VStack flex={1}>
+                      <Text fontSize="md" fontWeight="semibold" color="gray.800" numberOfLines={1}>
+                        Email Notifications
+                      </Text>
+                      <Text fontSize="sm" color="gray.500" numberOfLines={2}>
+                        Receive notifications via email
+                      </Text>
+                    </VStack>
+                    <Switch
+                      value={settings.email}
+                      onValueChange={(value) => setSettings({...settings, email: value})}
+                      colorScheme="primary"
+                    />
+                  </HStack>
+                </FormControl>
+                
+                <Divider />
+                
+                <FormControl>
+                  <HStack alignItems="center" justifyContent="space-between">
+                    <VStack flex={1}>
+                      <Text fontSize="md" fontWeight="semibold" color="gray.800" numberOfLines={1}>
+                        SMS Notifications
+                      </Text>
+                      <Text fontSize="sm" color="gray.500" numberOfLines={2}>
+                        Receive notifications via SMS
+                      </Text>
+                    </VStack>
+                    <Switch
+                      value={settings.sms}
+                      onValueChange={(value) => setSettings({...settings, sms: value})}
+                      colorScheme="primary"
+                    />
+                  </HStack>
+                </FormControl>
+                
+                <Divider />
+                
+                <FormControl>
+                  <HStack alignItems="center" justifyContent="space-between">
+                    <VStack flex={1}>
+                      <Text fontSize="md" fontWeight="semibold" color="gray.800" numberOfLines={1}>
+                        Marketing Emails
+                      </Text>
+                      <Text fontSize="sm" color="gray.500" numberOfLines={2}>
+                        Receive promotional content
+                      </Text>
+                    </VStack>
+                    <Switch
+                      value={settings.marketing}
+                      onValueChange={(value) => setSettings({...settings, marketing: value})}
+                      colorScheme="primary"
+                    />
+                  </HStack>
+                </FormControl>
+              </VStack>
+            </FormSection>
+          </Modal.Body>
+          <Modal.Footer borderTopWidth={0} pt={4}>
+            <Button.Group space={3} w="full">
+              <Button
+                flex={1}
+                variant="outline"
+                colorScheme="gray"
+                onPress={() => setShowSettings(false)}
+                borderRadius="xl"
+              >
+                Cancel
+              </Button>
+              <Button
+                flex={1}
+                colorScheme="primary"
+                onPress={handleSaveSettings}
+                borderRadius="xl"
+              >
+                Save Changes
+              </Button>
+            </Button.Group>
+          </Modal.Footer>
+        </Modal.Content>
+      </Modal>
     </Box>
   );
 };
